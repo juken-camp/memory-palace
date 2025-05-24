@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Memory Palace - 記憶の宮殿</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            touch-action: manipulation;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 10px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .title {
+            text-align: center;
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            font-weight: 900;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7, #dda0dd);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: rainbow 3s ease-in-out infinite;
+            margin: 20px 0;
+            cursor: pointer;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes rainbow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-item {
+            text-align: center;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            color: #4ecdc4;
+        }
+
+        .game-state {
+            text-align: center;
+            color: #fff;
+            font-size: 1.1rem;
+            margin: 15px 0;
+            min-height: 30px;
+            font-weight: 700;
+        }
+
+        .grid-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            flex: 1;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            max-width: 400px;
+            width: 100%;
+            aspect-ratio: 1;
+        }
+
+        .crystal {
+            aspect-ratio: 1;
+            border-radius: 20%;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 50%, #0D47A1 100%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 4px 20px rgba(33, 150, 243, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        .crystal::before {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, transparent 50%);
+            border-radius: 20%;
+            pointer-events: none;
+        }
+
+        .crystal:active {
+            transform: scale(0.95);
+        }
+
+        .crystal.glowing {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+            box-shadow: 
+                0 0 30px rgba(255, 215, 0, 0.8),
+                0 0 60px rgba(255, 215, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            transform: scale(1.1);
+            border-color: rgba(255, 215, 0, 0.8);
+        }
+
+        .crystal.success {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 50%, #2E7D32 100%);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+        }
+
+        .crystal.error {
+            background: linear-gradient(135deg, #F44336 0%, #D32F2F 50%, #C62828 100%);
+            box-shadow: 0 0 20px rgba(244, 67, 54, 0.6);
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+            min-width: 100px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-reset:hover {
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .message {
+            text-align: center;
+            color: #fff;
+            font-size: 1rem;
+            margin: 15px 0;
+            min-height: 50px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .audio-control {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .audio-control:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #FFD700;
+            border-radius: 50%;
+            animation: particle-float 2s ease-out forwards;
+        }
+
+        @keyframes particle-float {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(0);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 5px;
+            }
+            
+            .grid {
+                gap: 6px;
+                max-width: 350px;
+            }
+            
+            .status-bar {
+                padding: 10px;
+            }
+            
+            .status-value {
+                font-size: 1rem;
+            }
+            
+            .btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+                min-width: 80px;
+            }
+        }
+
+        .level-up {
+            animation: levelUp 1s ease-out;
+        }
+
+        @keyframes levelUp {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); color: #FFD700; }
+            100% { transform: scale(1); }
+        }
+
+        .bonus-effect {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: 900;
+            color: #FFD700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            z-index: 100;
+            animation: bonusEffect 2s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes bonusEffect {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div class="audio-control" id="audioControl" title="音声を有効にする">
+        🔇
+    </div>
+
+    <div class="container">
+        <h1 class="title" id="title">Memory Palace</h1>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-label">レベル</div>
+                <div class="status-value" id="level">1</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">スコア</div>
+                <div class="status-value" id="score">0</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">最高記録</div>
+                <div class="status-value" id="highScore">0</div>
+            </div>
+        </div>
+
+        <div class="game-state" id="gameState">「開始」ボタンを押してゲームスタート！</div>
+
+        <div class="grid-container">
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="startBtn">開始</button>
+            <button class="btn btn-reset" id="resetBtn">リセット</button>
+        </div>
+
+        <div class="message" id="message">記憶力を鍛えて、あなたの限界に挑戦しましょう！</div>
+    </div>
+
+    <div class="particles" id="particles"></div>
+
+    <script>
+        class MemoryPalace {
+            constructor() {
+                this.level = 1;
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('memoryPalaceHighScore') || '0');
+                this.sequence = [];
+                this.playerSequence = [];
+                this.isShowingSequence = false;
+                this.isPlayerTurn = false;
+                this.attempts = 0;
+                this.maxAttempts = 3;
+                this.audioEnabled = false;
+                this.audioContext = null;
+                this.crystals = [];
+                
+                this.init();
+                this.createStars();
+                this.updateDisplay();
+            }
+
+            init() {
+                this.createGrid();
+                this.bindEvents();
+                this.initAudio();
+            }
+
+            createGrid() {
+                const grid = document.getElementById('grid');
+                grid.innerHTML = '';
+                
+                for (let i = 0; i < 25; i++) {
+                    const crystal = document.createElement('div');
+                    crystal.className = 'crystal';
+                    crystal.dataset.index = i;
+                    crystal.addEventListener('click', (e) => this.handleCrystalClick(e));
+                    crystal.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.handleCrystalClick(e);
+                    });
+                    grid.appendChild(crystal);
+                    this.crystals.push(crystal);
+                }
+            }
+
+            createStars() {
+                const starsContainer = document.getElementById('stars');
+                const starCount = 100;
+                
+                for (let i = 0; i < starCount; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.top = Math.random() * 100 + '%';
+                    star.style.width = star.style.height = Math.random() * 3 + 1 + 'px';
+                    star.style.animationDelay = Math.random() * 3 + 's';
+                    starsContainer.appendChild(star);
+                }
+            }
+
+            bindEvents() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+                document.getElementById('title').addEventListener('click', () => this.resetGame());
+                document.getElementById('audioControl').addEventListener('click', () => this.toggleAudio());
+            }
+
+            async initAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (error) {
+                    console.warn('Audio not supported:', error);
+                }
+            }
+
+            async toggleAudio() {
+                if (!this.audioContext) {
+                    await this.initAudio();
+                }
+                
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+                
+                this.audioEnabled = !this.audioEnabled;
+                const audioControl = document.getElementById('audioControl');
+                audioControl.textContent = this.audioEnabled ? '🔊' : '🔇';
+                audioControl.title = this.audioEnabled ? '音声をミュート' : '音声を有効にする';
+                
+                if (this.audioEnabled) {
+                    this.playSound(440, 0.1, 'sine');
+                }
+            }
+
+            playSound(frequency, duration, type = 'sine', volume = 0.3) {
+                if (!this.audioEnabled || !this.audioContext) return;
+                
+                try {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                    oscillator.type = type;
+                    
+                    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration);
+                } catch (error) {
+                    console.warn('Audio playback error:', error);
+                }
+            }
+
+            playCrystalSound(index) {
+                const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25];
+                const frequency = notes[index % notes.length];
+                this.playSound(frequency, 0.3, 'sine', 0.4);
+            }
+
+            playSuccessSound() {
+                if (!this.audioEnabled) return;
+                setTimeout(() => this.playSound(523.25, 0.2, 'sine', 0.3), 0);
+                setTimeout(() => this.playSound(659.25, 0.2, 'sine', 0.3), 100);
+                setTimeout(() => this.playSound(783.99, 0.3, 'sine', 0.3), 200);
+            }
+
+            playErrorSound() {
+                this.playSound(200, 0.5, 'sawtooth', 0.3);
+            }
+
+            playBonusSound() {
+                if (!this.audioEnabled) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((note, index) => {
+                    setTimeout(() => this.playSound(note, 0.3, 'sine', 0.4), index * 150);
+                });
+            }
+
+            startGame() {
+                if (this.isShowingSequence || this.isPlayerTurn) return;
+                
+                this.attempts = 0;
+                this.generateSequence();
+                this.showSequence();
+            }
+
+            generateSequence() {
+                this.sequence = [];
+                const sequenceLength = Math.min(2 + this.level, 15);
+                
+                for (let i = 0; i < sequenceLength; i++) {
+                    this.sequence.push(Math.floor(Math.random() * 25));
+                }
+            }
+
+            async showSequence() {
+                this.isShowingSequence = true;
+                this.isPlayerTurn = false;
+                this.playerSequence = [];
+                this.updateGameState('パターンを記憶してください...');
+                
+                document.getElementById('startBtn').disabled = true;
+                
+                await this.delay(1000);
+                
+                for (let i = 0; i < this.sequence.length; i++) {
+                    const index = this.sequence[i];
+                    this.lightUpCrystal(index);
+                    this.playCrystalSound(index);
+                    await this.delay(1000);
+                    this.resetCrystal(index);
+                    await this.delay(200);
+                }
+                
+                this.isShowingSequence = false;
+                this.isPlayerTurn = true;
+                this.updateGameState('あなたの番です！順序を再現してください');
+                document.getElementById('startBtn').disabled = false;
+            }
+
+            lightUpCrystal(index) {
+                if (this.crystals[index]) {
+                    this.crystals[index].classList.add('glowing');
+                }
+            }
+
+            resetCrystal(index) {
+                if (this.crystals[index]) {
+                    this.crystals[index].classList.remove('glowing', 'success', 'error');
+                }
+            }
+
+            handleCrystalClick(event) {
+                if (!this.isPlayerTurn || this.isShowingSequence) return;
+                
+                const index = parseInt(event.target.dataset.index);
+                if (isNaN(index)) return;
+                
+                this.playerSequence.push(index);
+                this.playCrystalSound(index);
+                
+                // 即座に正誤判定
+                const currentStep = this.playerSequence.length - 1;
+                const isCorrect = this.sequence[currentStep] === index;
+                
+                if (isCorrect) {
+                    this.crystals[index].classList.add('success');
+                    setTimeout(() => this.resetCrystal(index), 300);
+                    
+                    // 全て正解した場合
+                    if (this.playerSequence.length === this.sequence.length) {
+                        this.handleSuccess();
+                    }
+                } else {
+                    this.crystals[index].classList.add('error');
+                    setTimeout(() => this.resetCrystal(index), 500);
+                    this.handleError();
+                }
+            }
+
+            handleSuccess() {
+                this.isPlayerTurn = false;
+                this.playSuccessSound();
+                this.createParticles();
+                
+                // スコア計算
+                let basePoints = this.level * 10;
+                let multiplier = 1;
+                
+                if (this.attempts === 0) multiplier = 2;
+                else if (this.attempts === 1) multiplier = 1.5;
+                
+                const points = Math.floor(basePoints * multiplier);
+                this.score += points;
+                
+                // レベルボーナス
+                if (this.level % 10 === 0) {
+                    this.score += 500;
+                    this.showBonusEffect();
+                    this.playBonusSound();
+                }
+                
+                this.level++;
+                this.attempts = 0;
+                
+                this.updateDisplay();
+                this.updateGameState(`正解！ +${points}点`);
+                
+                // レベルアップエフェクト
+                document.getElementById('level').classList.add('level-up');
+                setTimeout(() => {
+                    document.getElementById('level').classList.remove('level-up');
+                }, 1000);
+                
+                setTimeout(() => {
+                    this.startGame();
+                }, 2000);
+            }
+
+            handleError() {
+                this.isPlayerTurn = false;
+                this.playErrorSound();
+                this.attempts++;
+                
+                if (this.attempts >= this.maxAttempts) {
+                    this.gameOver();
+                } else {
+                    this.updateGameState(`間違いです。残り${this.maxAttempts - this.attempts}回`);
+                    setTimeout(() => {
+                        this.playerSequence = [];
+                        this.isPlayerTurn = true;
+                        this.updateGameState('もう一度挑戦してください！');
+                    }, 1500);
+                }
+            }
+
+            gameOver() {
+                this.isPlayerTurn = false;
+                this.updateGameState('ゲームオーバー！');
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('memoryPalaceHighScore', this.highScore.toString());
+                    this.updateMessage('🎉 新記録達成！おめでとうございます！');
+                } else {
+                    this.updateMessage(`最終スコア: ${this.score}点 | レベル${this.level - 1}まで到達`);
+                }
+                
+                this.updateDisplay();
+            }
+
+            resetGame() {
+                this.level = 1;
+                this.score = 0;
+                this.sequence = [];
+                this.playerSequence = [];
+                this.isShowingSequence = false;
+                this.isPlayerTurn = false;
+                this.attempts = 0;
+                
+                this.crystals.forEach(crystal => {
+                    crystal.classList.remove('glowing', 'success', 'error');
+                });
+                
+                document.getElementById('startBtn').disabled = false;
+                this.updateDisplay();
+                this.updateGameState('「開始」ボタンを押してゲームスタート！');
+                this.updateMessage('記憶力を鍛えて、あなたの限界に挑戦しましょう！');
+            }
+
+            createParticles() {
+                const particlesContainer = document.getElementById('particles');
+                const particleCount = 20;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.top = Math.random() * 100 + '%';
+                    particle.style.animationDelay = Math.random() * 0.5 + 's';
+                    particlesContainer.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        if (particle.parentNode) {
+                            particle.parentNode.removeChild(particle);
+                        }
+                    }, 2000);
+                }
+            }
+
+            showBonusEffect() {
+                const bonusElement = document.createElement('div');
+                bonusElement.className = 'bonus-effect';
+                bonusElement.textContent = `LEVEL ${this.level} BONUS!`;
+                document.body.appendChild(bonusElement);
+                
+                setTimeout(() => {
+                    if (bonusElement.parentNode) {
+                        bonusElement.parentNode.removeChild(bonusElement);
+                    }
+                }, 2000);
+            }
+
+            updateDisplay() {
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('score').textContent = this.score.toLocaleString();
+                document.getElementById('highScore').textContent = this.highScore.toLocaleString();
+            }
+
+            updateGameState(text) {
+                document.getElementById('gameState').textContent = text;
+            }
+
+            updateMessage(text) {
+                document.getElementById('message').textContent = text;
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // ゲーム初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            new MemoryPalace();
+        });
+
+        // タッチイベントの最適化
+        document.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
